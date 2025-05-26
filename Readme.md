@@ -95,8 +95,8 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Contact
 
-For questions or feedback, please contact [Your Name] at [asrahman@live.com].
+For questions or feedback, please contact [Ahmedur Rahman] at [asrahman@live.com].
 
 ---
 
-Thank you for using Audio Transcriber!
+Thank you for using Audio Transcriber!!
