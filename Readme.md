@@ -18,5 +18,5 @@ This is a simple Flask-based API for transcribing audio files using OpenAI's [Wh
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/whisper-api.git
+   git clone https://github.com/asrahmann/Audio_Transcriber.git
    cd whisper-api
