@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcriber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom spinner */
+        .loader {
+            border-top-color: #3498db; /* Blue */
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .message-box {
+            transition: opacity 0.3s ease-in-out;
+        }
+        .message-success {
+            background-color: #e6fffa; /* Tailwind green-100 equivalent */
+            color: #2f855a; /* Tailwind green-700 equivalent */
+            border-left: 4px solid #38a169; /* Tailwind green-500 equivalent */
+        }
+        .message-error {
+            background-color: #fff5f5; /* Tailwind red-100 equivalent */
+            color: #c53030; /* Tailwind red-700 equivalent */
+            border-left: 4px solid #e53e3e; /* Tailwind red-500 equivalent */
+        }
+        .message-info {
+            background-color: #ebf8ff; /* Tailwind blue-100 equivalent */
+            color: #2b6cb0; /* Tailwind blue-700 equivalent */
+            border-left: 4px solid #3182ce; /* Tailwind blue-500 equivalent */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-blue-200">
+
+    <div class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-xl transform transition-all hover:scale-[1.01]">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">Audio Scribe</h1>
+            <p class="text-gray-600 mt-2 text-sm sm:text-base">Upload your audio file to transcribe it using Whisper.</p>
+        </header>
+
+        <main>
+            <div class="mb-6">
+                <label for="audioFile" class="block text-sm font-medium text-gray-700 mb-2">
+                    Select Audio File (MP3, WAV, M4A, etc.):
+                </label>
+                <input type="file" id="audioFile" accept="audio/*"
+                       class="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-3 file:px-6
+                              file:rounded-lg file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100
+                              cursor-pointer transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                <p id="fileName" class="text-xs text-gray-500 mt-1 truncate"></p>
+            </div>
+
+            <button id="transcribeButton"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
+                           transition-all duration-150 ease-in-out transform hover:shadow-lg active:scale-95
+                           flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+                Transcribe Audio
+            </button>
+
+            <div id="loadingIndicator" class="hidden flex items-center justify-center my-6">
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+                <p class="ml-3 text-gray-600">Processing audio... This may take a while.</p>
+            </div>
+
+            <div id="messageArea" class="mt-4 p-3 rounded-lg text-sm text-center message-box opacity-0"></div>
+
+            <div id="transcriptionSection" class="mt-8 hidden">
+                <h2 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-3">Transcription:</h2>
+                <div id="transcriptionOutput" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[100px] text-gray-700 whitespace-pre-wrap shadow-inner overflow-y-auto max-h-60">
+                    </div>
+                <button id="copyButton" class="mt-4 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg text-sm flex items-center justify-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m9.75 0l-4.5-4.5m0 0l-4.5 4.5M12 4.5v12.75" />
+                    </svg>
+                    Copy Transcription
+                </button>
+            </div>
+        </main>
+
+        <footer class="mt-10 text-center text-xs text-gray-500">
+            <p>&copy; 2024 Audio Scribe. </p>
+            <p class="mt-1">Connect this to a backend server running the Whisper model for transcription.</p>
+        </footer>
+    </div>
+
+    <script>
+        const audioFileInput = document.getElementById('audioFile');
+        const transcribeButton = document.getElementById('transcribeButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const transcriptionSection = document.getElementById('transcriptionSection');
+        const transcriptionOutput = document.getElementById('transcriptionOutput');
+        const messageArea = document.getElementById('messageArea');
+        const fileNameDisplay = document.getElementById('fileName');
+        const copyButton = document.getElementById('copyButton');
+
+        let selectedFile = null;
+
+        // Function to display messages
+        function showMessage(message, type = 'info', duration = 5000) {
+            messageArea.textContent = message;
+            messageArea.className = 'mt-4 p-3 rounded-lg text-sm text-center message-box'; // Reset classes
+            if (type === 'success') {
+                messageArea.classList.add('message-success');
+            } else if (type === 'error') {
+                messageArea.classList.add('message-error');
+            } else {
+                messageArea.classList.add('message-info');
+            }
+            messageArea.style.opacity = 1;
+
+            if (duration) {
+                setTimeout(() => {
+                    messageArea.style.opacity = 0;
+                }, duration);
+            }
+        }
+
+        audioFileInput.addEventListener('change', (event) => {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                fileNameDisplay.textContent = `Selected: ${selectedFile.name}`;
+                messageArea.style.opacity = 0; // Clear previous messages
+                transcriptionSection.classList.add('hidden'); // Hide previous transcription
+            } else {
+                fileNameDisplay.textContent = '';
+                selectedFile = null;
+            }
+        });
+
+        transcribeButton.addEventListener('click', async () => {
+            if (!selectedFile) {
+                showMessage('Please select an audio file first.', 'error');
+                return;
+            }
+
+            // Hide previous transcription and messages
+            transcriptionSection.classList.add('hidden');
+            messageArea.style.opacity = 0;
+
+            // Show loading indicator and disable button
+            loadingIndicator.classList.remove('hidden');
+            transcribeButton.disabled = true;
+
+            const formData = new FormData();
+            formData.append('audio_file', selectedFile);
+
+            try {
+                // Ensure this URL points to your running Flask backend
+                const response = await fetch('http://127.0.0.1:5000/transcribe', {
+                    method: 'POST',
+                    body: formData,
+                    // 'Content-Type': 'multipart/form-data' is usually set automatically by the browser for FormData
+                });
+
+                if (!response.ok) {
+                    let errorDetail = 'Failed to transcribe. Please try again.';
+                    try {
+                        const errorData = await response.json();
+                        // Use a more specific error message from backend if available
+                        errorDetail = errorData.error || errorData.detail || errorDetail;
+                    } catch (e) {
+                        // If parsing JSON fails, use the status text
+                        errorDetail = `Server error: ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorDetail);
+                }
+
+                const result = await response.json();
+
+                if (result.transcription) {
+                    transcriptionOutput.textContent = result.transcription;
+                    transcriptionSection.classList.remove('hidden');
+                    showMessage('Transcription successful!', 'success');
+                } else {
+                    // This case might occur if the backend sends a 200 OK but the JSON is not as expected
+                    throw new Error('Transcription not found in server response.');
+                }
+
+            } catch (error) {
+                console.error('Transcription error:', error);
+                showMessage(`Error: ${error.message}`, 'error');
+                transcriptionSection.classList.add('hidden'); // Ensure transcription section is hidden on error
+            } finally {
+                // Hide loading indicator and re-enable button
+                loadingIndicator.classList.add('hidden');
+                transcribeButton.disabled = false;
+            }
+        });
+
+        copyButton.addEventListener('click', () => {
+            const textToCopy = transcriptionOutput.textContent;
+            if (!textToCopy) {
+                showMessage('Nothing to copy.', 'info', 3000);
+                return;
+            }
+
+            // Create a temporary textarea element to copy text
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            // Style it to be off-screen
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy'); // Using execCommand for broader compatibility
+                showMessage('Transcription copied to clipboard!', 'success', 3000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                showMessage('Failed to copy text. Please copy manually.', 'error');
+                // Fallback for environments where execCommand might fail
+                // You could prompt the user to manually copy or use navigator.clipboard if available and in a secure context
+            }
+            document.body.removeChild(textArea);
+        });
+
+    </script>
+</body>
+</html>
